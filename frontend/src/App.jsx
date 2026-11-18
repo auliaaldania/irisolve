@@ -1,122 +1,100 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchTasks } from "./services/api";
+import FilterBar from "./components/FilterBar";
+import GanttChart from "./components/GanttChart";
 
-function App() {
-  const [count, setCount] = useState(0)
+const DAY = 86400000;
+const DEFAULT_FILTERS = {
+  divisi: "Semua",
+  pic: "Semua",
+  statuses: ["Belum", "Sedang dikerjakan", "Revisi"],
+};
+
+export default function App() {
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setTasks(await fetchTasks());
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // pilihan dropdown dibuat dari data, bukan ditulis manual
+  const divisiList = useMemo(() => [...new Set(tasks.map((t) => t.divisi))].sort(), [tasks]);
+  const picList = useMemo(() => [...new Set(tasks.flatMap((t) => t.pic))].sort(), [tasks]);
+
+  // tiga filter dipakai bersamaan: tugas harus lolos ketiganya
+  const visible = useMemo(
+    () =>
+      tasks.filter(
+        (t) =>
+          (filters.divisi === "Semua" || t.divisi === filters.divisi) &&
+          (filters.pic === "Semua" || t.pic.includes(filters.pic)) &&
+          filters.statuses.includes(t.status)
+      ),
+    [tasks, filters]
+  );
+
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  // rentang dihitung dari SEMUA tugas supaya bar tidak bergeser saat filter berubah
+  const range = useMemo(() => {
+    const starts = tasks.map((t) => t.start).filter(Boolean);
+    const ends = tasks.map((t) => t.deadline).filter(Boolean);
+    return {
+      start: new Date(Math.min(...starts, today)),
+      end: new Date(Math.max(...ends, today) + DAY),
+    };
+  }, [tasks, today]);
+
+  const reset = () => setFilters(DEFAULT_FILTERS);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="page">
+      <h1>Timeline</h1>
+      <p className="muted">Semua tugas dari tab divisi dalam satu layar</p>
 
-      <div className="ticks"></div>
+      <FilterBar
+        filters={filters}
+        setFilters={setFilters}
+        divisiList={divisiList}
+        picList={picList}
+        onReset={reset}
+      />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {error ? (
+        <div className="state error">
+          <p>{error}. Cek apakah backend sudah jalan atau alamat API sudah benar.</p>
+          <button className="btn" onClick={load}>Coba lagi</button>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
+      ) : loading ? (
+        <div className="state">Memuat tugas…</div>
+      ) : visible.length === 0 ? (
+        <div className="state">
+          <p>Tidak ada tugas yang cocok dengan filter ini.</p>
+          <button className="btn" onClick={reset}>Reset filter</button>
         </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      ) : (
+        <>
+          <p className="muted count">Menampilkan {visible.length} dari {tasks.length} tugas</p>
+          <GanttChart tasks={visible} range={range} today={today} />
+        </>
+      )}
+    </div>
+  );
 }
-
-export default App
