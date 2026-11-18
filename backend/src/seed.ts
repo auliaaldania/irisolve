@@ -1,12 +1,21 @@
-// npm run db:seed  -> bikin akun contoh (password semua: iris12345, GANTI untuk produksi)
+// npm run db:seed  -> bikin akun contoh. Aman dijalankan berulang (akun yang sudah ada tidak ditimpa).
+// Password dari SEED_PASSWORD (default iris12345 hanya untuk dev; wajib di-set di production).
 import { pool } from "./db";
-import { createUser } from "./iris-auth";
+import { createUser, type Role } from "./iris-auth";
+
+const password = process.env.SEED_PASSWORD ?? "iris12345";
+if (process.env.NODE_ENV === "production" && !process.env.SEED_PASSWORD)
+  throw new Error("Set SEED_PASSWORD dulu sebelum seed di production");
+
+const DIVISIONS = ["Programming", "Mekanik", "Electrical", "AdFin", "DesBrand"];
+const accounts: { username: string; role: Role; division?: string; picName?: string }[] = [
+  { username: "gm", role: "gm" },
+  ...DIVISIONS.map((d) => ({ username: `koor.${d.toLowerCase()}`, role: "koordinator" as Role, division: d })),
+  { username: "aslam", role: "staff", division: "Programming", picName: "Aslam" },
+];
 
 (async () => {
-  await pool.query("DELETE FROM users");
-  await createUser(pool, { username: "gm", password: "iris12345", role: "gm" });
-  await createUser(pool, { username: "koor.programming", password: "iris12345", role: "koordinator", division: "Programming" });
-  await createUser(pool, { username: "aslam", password: "iris12345", role: "staff", division: "Programming", picName: "Aslam" });
-  console.log("Akun contoh dibuat: gm, koor.programming, aslam (password: iris12345)");
+  for (const a of accounts) await createUser(pool, { ...a, password });
+  console.log(`Akun siap: ${accounts.map((a) => a.username).join(", ")}`);
   await pool.end();
 })().catch((e) => { console.error(e); process.exit(1); });

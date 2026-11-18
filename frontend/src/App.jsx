@@ -1,50 +1,60 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchTasks } from "./services/api";
-import FilterBar from "./components/FilterBar";
-import GanttChart from "./components/GanttChart";
+import { AuthError, fetchLatestImport, fetchTasks, logout as apiLogout, restoreSession } from "./services/api";
+import Login from "./pages/Login";
+import Timeline from "./pages/Timeline";
+import TugasSaya from "./pages/TugasSaya";
+import RingkasanGM from "./pages/RingkasanGM";
+import ImportDialog from "./components/ImportDialog";
+import "./pages.css";
 
-const DAY = 86400000;
-const DEFAULT_FILTERS = {
-  divisi: "Semua",
-  pic: "Semua",
-  statuses: ["Belum", "Sedang dikerjakan", "Revisi"],
-};
+const TABS = [
+  { id: "timeline", label: "Timeline" },
+  { id: "tugas-saya", label: "Tugas saya" },
+  { id: "beban-kerja", label: "Beban kerja", badge: "Sprint 2" },
+  { id: "konflik", label: "Konflik", badge: "Sprint 2" },
+  { id: "what-if", label: "What-if", badge: "Sprint 2–3" },
+  { id: "ringkasan-gm", label: "Ringkasan GM" },
+];
+const PLACEHOLDERS = ["beban-kerja", "konflik", "what-if"];
+
+function Placeholder({ label, badge }) {
+  return (
+    <>
+      <h1>{label}</h1>
+      <div className="state">Halaman ini tersedia di {badge || "sprint berikutnya"}.</div>
+    </>
+  );
+}
+
+const roleLabel = (u) =>
+  u.role === "gm" ? "General Manager" : u.role === "koordinator" ? `Koordinator ${u.division}` : `${u.picName ?? "Staff"} · ${u.division}`;
 
 export default function App() {
+  const [session, setSession] = useState(undefined); // undefined = sedang dicek, null = belum login
+  const [tab, setTab] = useState("timeline");
   const [tasks, setTasks] = useState([]);
+  const [imports, setImports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [showImport, setShowImport] = useState(false);
+
+  useEffect(() => { restoreSession().then(setSession).catch(() => setSession(null)); }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      setTasks(await fetchTasks());
+      const [t, i] = await Promise.all([fetchTasks(), fetchLatestImport().catch(() => [])]);
+      setTasks(t);
+      setImports(i);
     } catch (e) {
-      setError(e.message);
+      if (e instanceof AuthError) setSession(null);
+      else setError(e.message);
     } finally {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  // pilihan dropdown dibuat dari data, bukan ditulis manual
-  const divisiList = useMemo(() => [...new Set(tasks.map((t) => t.divisi))].sort(), [tasks]);
-  const picList = useMemo(() => [...new Set(tasks.flatMap((t) => t.pic))].sort(), [tasks]);
-
-  // tiga filter dipakai bersamaan: tugas harus lolos ketiganya
-  const visible = useMemo(
-    () =>
-      tasks.filter(
-        (t) =>
-          (filters.divisi === "Semua" || t.divisi === filters.divisi) &&
-          (filters.pic === "Semua" || t.pic.includes(filters.pic)) &&
-          filters.statuses.includes(t.status)
-      ),
-    [tasks, filters]
-  );
+  useEffect(() => { if (session) load(); }, [session, load]);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -52,49 +62,46 @@ export default function App() {
     return d;
   }, []);
 
-  // rentang dihitung dari SEMUA tugas supaya bar tidak bergeser saat filter berubah
-  const range = useMemo(() => {
-    const starts = tasks.map((t) => t.start).filter(Boolean);
-    const ends = tasks.map((t) => t.deadline).filter(Boolean);
-    return {
-      start: new Date(Math.min(...starts, today)),
-      end: new Date(Math.max(...ends, today) + DAY),
-    };
-  }, [tasks, today]);
+  if (session === undefined) return <div className="page"><div className="state">Memuat…</div></div>;
+  if (session === null) return <Login onLogin={(s) => { setTab("timeline"); setSession(s); }} />;
 
-  const reset = () => setFilters(DEFAULT_FILTERS);
+  const tabs = TABS.filter((t) => session.menu.includes(t.id));
+  const active = tabs.find((t) => t.id === tab) ?? tabs[0];
+  const lastImport = imports.length ? new Date(Math.max(...imports.map((i) => i.importedAt))) : null;
+  const canImport = session.menu.includes("import-csv");
+  const signOut = () => { apiLogout(); setTasks([]); setSession(null); };
+
+  let body;
+  if (PLACEHOLDERS.includes(active.id)) body = <Placeholder label={active.label} badge={active.badge} />;
+  else if (error)
+    body = (
+      <div className="state error">
+        <p>{error}. Cek apakah backend sudah jalan atau alamat API sudah benar.</p>
+        <button className="btn" onClick={load}>Coba lagi</button>
+      </div>
+    );
+  else if (loading) body = <div className="state">Memuat tugas…</div>;
+  else if (active.id === "timeline")
+    body = <Timeline tasks={tasks} today={today} lastImport={lastImport} onImport={canImport ? () => setShowImport(true) : null} />;
+  else if (active.id === "tugas-saya") body = <TugasSaya tasks={tasks} today={today} user={session.user} />;
+  else body = <RingkasanGM tasks={tasks} today={today} />;
 
   return (
     <div className="page">
-      <h1>Timeline</h1>
-      <p className="muted">Semua tugas dari tab divisi dalam satu layar</p>
-
-      <FilterBar
-        filters={filters}
-        setFilters={setFilters}
-        divisiList={divisiList}
-        picList={picList}
-        onReset={reset}
-      />
-
-      {error ? (
-        <div className="state error">
-          <p>{error}. Cek apakah backend sudah jalan atau alamat API sudah benar.</p>
-          <button className="btn" onClick={load}>Coba lagi</button>
-        </div>
-      ) : loading ? (
-        <div className="state">Memuat tugas…</div>
-      ) : visible.length === 0 ? (
-        <div className="state">
-          <p>Tidak ada tugas yang cocok dengan filter ini.</p>
-          <button className="btn" onClick={reset}>Reset filter</button>
-        </div>
-      ) : (
-        <>
-          <p className="muted count">Menampilkan {visible.length} dari {tasks.length} tugas</p>
-          <GanttChart tasks={visible} range={range} today={today} />
-        </>
-      )}
+      <nav className="topnav">
+        <span className="brand">IRISolve</span>
+        {tabs.map((t) => (
+          <button key={t.id} className={`navbtn ${active.id === t.id ? "active" : ""}`} onClick={() => setTab(t.id)}>
+            {t.label}
+            {t.badge && <span className="navbadge">{t.badge}</span>}
+          </button>
+        ))}
+        <span className="navnote">Tampilan baca-saja · data dari sheet IRIS 2026–2027</span>
+        <span className="who">{roleLabel(session.user)}</span>
+        <button className="btn ghost" onClick={signOut}>Keluar</button>
+      </nav>
+      {body}
+      {showImport && <ImportDialog onClose={() => setShowImport(false)} onDone={load} />}
     </div>
   );
 }

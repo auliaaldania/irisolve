@@ -30,7 +30,7 @@ app.get("/api/tasks", authenticate, async (req, res) => {
   const { rows } = await pool.query(
     `SELECT id, division, source_row AS "sourceRow", name, pics,
             start_date::text AS start, deadline::text AS deadline,
-            progress, data_incomplete AS "dataIncomplete", imported_at AS "importedAt"
+            progress, status, data_incomplete AS "dataIncomplete", imported_at AS "importedAt"
      FROM tasks WHERE ${where}
      ORDER BY division, deadline NULLS LAST, source_row`,
     params,
@@ -63,6 +63,13 @@ app.get("/api/import/latest", authenticate, async (req, res) => {
     u.role === "gm" ? [] : [u.division],
   );
   res.json(rows);
+});
+
+// Error upload (mis. file > 2MB) dan error tak terduga lainnya -> JSON, bukan halaman HTML
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err?.code === "LIMIT_FILE_SIZE") return res.status(400).json({ error: "File terlalu besar (maksimal 2 MB)" });
+  console.error(err);
+  res.status(500).json({ error: "Kesalahan server" });
 });
 
 const port = Number(process.env.PORT ?? 3000);
