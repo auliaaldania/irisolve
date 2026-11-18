@@ -1,0 +1,55 @@
+/* tambahan untuk nav, banner, Tugas saya, Ringkasan GM */
+.topnav{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 0 14px;margin-bottom:18px;border-bottom:1px solid #e3e8ee}
+.topnav .brand{font-weight:700;color:#1c4e7a;font-size:18px;margin-right:14px}
+.navbtn{border:0;background:transparent;padding:8px 12px;border-radius:8px;font:inherit;color:#44505e;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.navbtn:hover{background:#eef2f6}
+.navbtn.active{background:#1c4e7a;color:#fff}
+.navbadge{font-size:11px;background:#e6ebf0;color:#44505e;padding:1px 7px;border-radius:999px}
+.navbtn.active .navbadge{background:#ffffff33;color:#fff}
+.navnote{margin-left:auto;font-size:13px;color:#6b7785}
+.banner{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;background:#fdf1d8;color:#5a4208;border-radius:10px;padding:12px 16px;margin:14px 0}
+.banner ul{margin:8px 0 0;padding-left:18px;font-size:13px}
+.titlebar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.cards{display:grid;gap:14px;margin:16px 0}
+.cards.three{grid-template-columns:repeat(3,1fr)}
+.cards.four{grid-template-columns:repeat(4,1fr)}
+.card{background:#fff;border:1px solid #e3e8ee;border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:4px}
+.card b{font-size:34px;line-height:1.1;color:#16212e}
+.card b.amber{color:#8a4b08}
+.card.warnbox{border-color:#c4701a}
+.tablebox{background:#fff;border:1px solid #e3e8ee;border-radius:12px;overflow:hidden}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-weight:500;color:#6b7785;padding:12px 16px;border-bottom:1px solid #e3e8ee}
+.tbl td{padding:14px 16px;border-bottom:1px solid #eef2f6}
+.late{color:#a32a1f;font-weight:700}
+.chip.warn{background:#fdf1d8;color:#5a4208;padding:2px 10px;border-radius:999px;font-size:12px}
+.badge{padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:#e6ebf0;color:#44505e}
+.badge.sedang-dikerjakan{background:#dcebf8;color:#1c4e7a}
+.badge.selesai{background:#dff1e7;color:#1f6a46}
+.badge.revisi{background:#fbe8d2;color:#8a4b08}
+.doneblock summary{cursor:pointer;padding:14px 16px;color:#6b7785}
+.twocol{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+.panel{background:#fff;border:1px solid #e3e8ee;border-radius:12px;padding:18px}
+.panel h3{margin:0 0 14px}
+.hbar{display:flex;align-items:center;gap:10px;margin:10px 0}
+.hlabel{width:100px;flex:none}
+.hfill{height:16px;background:#276a9e;border-radius:4px;display:inline-block}
+@media (max-width:800px){.cards.three,.cards.four,.twocol{grid-template-columns:1fr}}
+
+/* login, impor, header Timeline */
+.who { font-size: 13px; color: var(--muted); margin-left: 10px; }
+.titlebar .lastimport { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.control.static { cursor: default; }
+.btn.primary { background: #1c4e7a; border-color: #1c4e7a; color: #fff; font-weight: 600; }
+.btn.primary:disabled { opacity: .5; cursor: default; }
+.loginwrap { display: grid; place-items: center; min-height: 100vh; }
+.loginbox { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
+.loginbox .brand { font-weight: 700; color: #1c4e7a; font-size: 18px; }
+.loginbox label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.loginbox .control { cursor: text; color: var(--ink); }
+.overlay { position: fixed; inset: 0; background: rgba(20, 30, 45, .45); display: grid; place-items: center; z-index: 20; padding: 16px; }
+.modal { width: 100%; max-width: 560px; max-height: 90vh; overflow: auto; }
+.importform { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 14px 0; }
+.report { background: var(--bg); border-radius: 10px; padding: 12px 16px; font-size: 14px; }
+.report ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: #a32a1f; }
+.modalfoot { display: flex; justify-content: flex-end; margin-top: 14px; }

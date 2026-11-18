@@ -30,9 +30,9 @@ if (!JWT_SECRET) throw new Error("JWT_SECRET belum di-set di environment");
 // Hash palsu: dipakai supaya waktu respons sama baik username ada maupun tidak
 const DUMMY_HASH = bcrypt.hashSync("dummy-password", 10);
 
-// Menu per role (ASUMSI, cocokkan dengan frontend/desain)
+// Menu per role (sesuai desain dashboard; "import-csv" = tombol Impor ulang di Timeline)
 export const MENU: Record<Role, string[]> = {
-  gm:          ["timeline", "beban-kerja", "konflik", "what-if", "ringkasan-gm"],
+  gm:          ["timeline", "tugas-saya", "beban-kerja", "konflik", "what-if", "ringkasan-gm"],
   koordinator: ["timeline", "tugas-saya", "beban-kerja", "konflik", "what-if", "import-csv"],
   staff:       ["timeline", "tugas-saya"],
 };
@@ -74,7 +74,13 @@ export function taskScope(u: AuthUser, view: "division" | "mine" = "division") {
 export function authRouter(pool: Pool) {
   const r = Router();
 
+  // Batas percobaan gagal per IP: 10 kali / 15 menit (in-memory, cukup untuk satu instance)
+  const fails = new Map<string, { n: number; until: number }>();
   r.post("/login", async (req, res) => {
+    const ip = req.ip ?? "?";
+    const f = fails.get(ip);
+    if (f && f.until > Date.now() && f.n >= 10)
+      return res.status(429).json({ error: "Terlalu banyak percobaan, coba lagi beberapa menit lagi" });
     const { username, password } = req.body ?? {};
     if (typeof username !== "string" || typeof password !== "string" || !username || !password)
       return res.status(400).json({ error: "Username dan password wajib diisi" });
@@ -87,7 +93,12 @@ export function authRouter(pool: Pool) {
     const ok = await bcrypt.compare(password, u?.password_hash ?? DUMMY_HASH);
 
     // Pesan sama untuk username salah maupun password salah (tidak membocorkan akun)
-    if (!u || !ok) return res.status(401).json({ error: "Username atau password salah" });
+    if (!u || !ok) {
+      const cur = f && f.until > Date.now() ? f : { n: 0, until: Date.now() + 15 * 60_000 };
+      fails.set(ip, { n: cur.n + 1, until: cur.until });
+      return res.status(401).json({ error: "Username atau password salah" });
+    }
+    fails.delete(ip);
 
     const user: AuthUser = { id: Number(u.id), role: u.role, division: u.division, picName: u.pic_name };
     const token = jwt.sign(user, JWT_SECRET, { expiresIn: "8h" });
@@ -108,7 +119,7 @@ export async function createUser(
 ) {
   const hash = await bcrypt.hash(u.password, 10);
   await pool.query(
-    "INSERT INTO users (username, password_hash, role, division, pic_name) VALUES ($1,$2,$3,$4,$5)",
+    "INSERT INTO users (username, password_hash, role, division, pic_name) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING",
     [u.username, hash, u.role, u.division ?? null, u.picName ?? null],
   );
 }

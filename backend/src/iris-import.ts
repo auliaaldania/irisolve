@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   start_date      DATE,
   deadline        DATE,
   progress        INT CHECK (progress BETWEEN 0 AND 100),
+  status          TEXT    NOT NULL DEFAULT 'Belum',
   data_incomplete BOOLEAN NOT NULL DEFAULT FALSE,
   content_hash    TEXT    NOT NULL,
   imported_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -32,7 +33,10 @@ CREATE TABLE IF NOT EXISTS import_runs (
   incomplete  INT NOT NULL,
   errors      JSONB NOT NULL DEFAULT '[]',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);`;
+);
+-- migrasi untuk database yang sudah ada (aman dijalankan berulang)
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'Belum';
+ALTER TABLE import_runs ADD COLUMN IF NOT EXISTS removed INT NOT NULL DEFAULT 0;`;
 
 // ---------- Parsing helpers ----------
 
@@ -59,6 +63,23 @@ export function parseProgress(raw: string): number | null | undefined {
   return Math.round(n);
 }
 
+export const STATUSES = ["Belum", "Sedang dikerjakan", "Selesai", "Revisi"] as const;
+export type Status = (typeof STATUSES)[number];
+const PROGRESS_OF: Record<Status, number> = { "Belum": 0, "Sedang dikerjakan": 50, "Selesai": 100, "Revisi": 50 };
+export const statusFromProgress = (p: number | null): Status =>
+  p !== null && p >= 100 ? "Selesai" : p !== null && p > 0 ? "Sedang dikerjakan" : "Belum";
+
+/** Kolom Progress/Status boleh angka ("60%") atau teks ("Selesai", "Revisi"). Salah -> undefined. */
+export function parseStatus(raw: string): { status: Status; progress: number | null } | undefined {
+  const s = (raw ?? "").trim();
+  if (!s) return { status: "Belum", progress: null };
+  const text = STATUSES.find((x) => x.toLowerCase() === s.toLowerCase());
+  if (text) return { status: text, progress: PROGRESS_OF[text] };
+  const n = parseProgress(s);
+  if (n === undefined || n === null) return undefined;
+  return { status: statusFromProgress(n), progress: n };
+}
+
 const splitPics = (raw: string) =>
   (raw ?? "").split(/[,;&]/).map((p) => p.trim()).filter(Boolean);
 
@@ -68,7 +89,7 @@ export interface RowError { row: number; reason: string }
 export interface ParsedTask {
   sourceRow: number; name: string; pics: string[];
   start: string | null; deadline: string | null;
-  progress: number | null; incomplete: boolean;
+  progress: number | null; status: Status; incomplete: boolean;
 }
 
 export function parseTrackerCsv(csvText: string) {
@@ -79,8 +100,10 @@ export function parseTrackerCsv(csvText: string) {
   const headerIdx = data.findIndex((r) => r.map(norm).includes("tugas") && r.map(norm).includes("deadline"));
   if (headerIdx === -1) throw new ImportFormatError("Header tidak ditemukan (butuh kolom Tugas, PIC, Start, Deadline, Progress)");
   const col = Object.fromEntries(data[headerIdx].map((h, i) => [norm(h), i]));
-  const need = ["tugas", "pic", "start", "deadline", "progress"];
+  const need = ["tugas", "pic", "start", "deadline"];
   const missing = need.filter((k) => !(k in col));
+  const progCol = col["progress"] ?? col["status"];   // sheet asli kadang memakai "Status"
+  if (progCol === undefined) missing.push("progress");
   if (missing.length) throw new ImportFormatError(`Kolom tidak ada: ${missing.join(", ")}`);
 
   const tasks: ParsedTask[] = [];
@@ -97,16 +120,16 @@ export function parseTrackerCsv(csvText: string) {
 
     const start = parseDate(cell("start"));
     const deadline = parseDate(cell("deadline"));
-    const progress = parseProgress(cell("progress"));
+    const parsed = parseStatus((r[progCol] ?? "").trim());
     if (start === undefined) return void errors.push({ row, reason: `Format Start salah: "${cell("start")}" (harus dd/mm/yyyy)` });
     if (deadline === undefined) return void errors.push({ row, reason: `Format Deadline salah: "${cell("deadline")}" (harus dd/mm/yyyy)` });
-    if (progress === undefined) return void errors.push({ row, reason: `Progress tidak valid: "${cell("progress")}"` });
+    if (parsed === undefined) return void errors.push({ row, reason: `Progress/status tidak valid: "${(r[progCol] ?? "").trim()}" (isi angka 0-100 atau Belum / Sedang dikerjakan / Selesai / Revisi)` });
     if (start && deadline && deadline < start)
       return void errors.push({ row, reason: "Deadline lebih awal dari Start" });
 
     tasks.push({
       sourceRow: row, name, pics: splitPics(cell("pic")),
-      start, deadline, progress,
+      start, deadline, progress: parsed.progress, status: parsed.status,
       incomplete: !start || !deadline,   // satu tanggal atau tanpa tanggal
     });
   });
@@ -117,40 +140,48 @@ export function parseTrackerCsv(csvText: string) {
 
 export async function importDivisionCsv(pool: Pool, division: string, csvText: string, filename?: string) {
   const { tasks, errors } = parseTrackerCsv(csvText);
-  let inserted = 0, updated = 0, unchanged = 0;
+  let inserted = 0, updated = 0, unchanged = 0, removed = 0;
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     for (const t of tasks) {
       const hash = createHash("sha1")
-        .update(JSON.stringify([t.name, t.pics, t.start, t.deadline, t.progress]))
+        .update(JSON.stringify([t.name, t.pics, t.start, t.deadline, t.progress, t.status]))
         .digest("hex");
       const res = await client.query(
-        `INSERT INTO tasks (division, source_row, name, pics, start_date, deadline, progress, data_incomplete, content_hash)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        `INSERT INTO tasks (division, source_row, name, pics, start_date, deadline, progress, status, data_incomplete, content_hash)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
          ON CONFLICT (division, source_row) DO UPDATE SET
            name=EXCLUDED.name, pics=EXCLUDED.pics, start_date=EXCLUDED.start_date,
-           deadline=EXCLUDED.deadline, progress=EXCLUDED.progress,
+           deadline=EXCLUDED.deadline, progress=EXCLUDED.progress, status=EXCLUDED.status,
            data_incomplete=EXCLUDED.data_incomplete, content_hash=EXCLUDED.content_hash, imported_at=now()
          WHERE tasks.content_hash <> EXCLUDED.content_hash
          RETURNING (xmax = 0) AS inserted`,
-        [division, t.sourceRow, t.name, t.pics, t.start, t.deadline, t.progress, t.incomplete, hash],
+        [division, t.sourceRow, t.name, t.pics, t.start, t.deadline, t.progress, t.status, t.incomplete, hash],
       );
       if (res.rowCount === 0) unchanged++;
       else if (res.rows[0].inserted) inserted++;
       else updated++;
     }
+    // Baris yang sudah tidak ada di sheet dibuang. Baris yang error tetap dipertahankan
+    // (masih ada di sheet), dan file tanpa tugas valid tidak pernah menghapus apa pun.
+    if (tasks.length > 0) {
+      const keep = [...tasks.map((t) => t.sourceRow), ...errors.map((e) => e.row)];
+      const del = await client.query(
+        "DELETE FROM tasks WHERE division = $1 AND NOT (source_row = ANY($2::int[]))", [division, keep]);
+      removed = del.rowCount ?? 0;
+    }
     const report = {
       succeeded: tasks.length, failed: errors.length,
-      inserted, updated, unchanged,
+      inserted, updated, unchanged, removed,
       incomplete: tasks.filter((t) => t.incomplete).length,
       errors,
     };
     await client.query(
-      `INSERT INTO import_runs (division, filename, succeeded, failed, inserted, updated, unchanged, incomplete, errors)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [division, filename ?? null, report.succeeded, report.failed, inserted, updated, unchanged, report.incomplete, JSON.stringify(errors)],
+      `INSERT INTO import_runs (division, filename, succeeded, failed, inserted, updated, unchanged, removed, incomplete, errors)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [division, filename ?? null, report.succeeded, report.failed, inserted, updated, unchanged, removed, report.incomplete, JSON.stringify(errors)],
     );
     await client.query("COMMIT");
     return report;
