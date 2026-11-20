@@ -69,6 +69,9 @@ const normalize = (t) => {
     start: toDate(pick(t, "start", "start_date")),
     deadline: toDate(t.deadline),
     status: t.status ?? statusFrom(t.progress),
+    brief: t.brief ?? null,
+    requester: t.requester ?? null,
+    link: t.link ?? null,
   };
 };
 
@@ -88,9 +91,11 @@ export async function fetchLatestImport() {
   return rows.map((r) => ({ ...r, importedAt: new Date(r.importedAt) }));
 }
 
-export async function importCsv(file) {
+// .xlsx -> semua tab divisi sekaligus; .csv -> satu divisi (GM harus memilih divisi)
+export async function importFile(file, division) {
   if (MOCK) throw new Error("Impor hanya tersedia saat terhubung ke backend (isi VITE_API_URL)");
   const body = new FormData();
   body.append("file", file);
+  if (division) body.append("division", division);
   return request("/api/import", { method: "POST", body });
 }

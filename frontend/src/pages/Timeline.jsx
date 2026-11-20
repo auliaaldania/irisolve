@@ -37,12 +37,9 @@ export default function Timeline({ tasks, today, lastImport, onImport }) {
   return (
     <>
       <div className="titlebar">
-        <div>
+        <div className="titleline">
           <h1>Timeline</h1>
-          <p className="muted">
-            {divisiList.length > 1 ? `Semua tugas dari ${divisiList.length} tab divisi dalam satu layar` : `Semua tugas ${divisiList[0] ?? ""}`}
-            {tasks.length > 0 && ` · ${fmtRange(range.start, new Date(range.end - DAY))}`}
-          </p>
+          {tasks.length > 0 && <span className="sub">{fmtRange(range.start, new Date(range.end - DAY))}</span>}
         </div>
         <div className="lastimport">
           <span className="muted">{lastImport ? `Terakhir diimpor: ${fmtDateTime(lastImport)}` : "Belum pernah diimpor"}</span>
@@ -76,7 +73,6 @@ export default function Timeline({ tasks, today, lastImport, onImport }) {
         </div>
       ) : (
         <>
-          <p className="muted count">Menampilkan {visible.length} dari {tasks.length} tugas</p>
           <GanttChart tasks={visible} range={range} today={today} />
         </>
       )}

@@ -1,3 +1,5 @@
+import { Fragment, useState } from "react";
+
 const BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const STATUS = ["Belum", "Sedang dikerjakan", "Selesai", "Revisi"];
 const DAY = 86400000;
@@ -5,7 +7,28 @@ const DAY = 86400000;
 const slug = (s) => s.toLowerCase().replace(/\s+/g, "-");
 const fmt = (d) => `${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`;
 
+const linkify = (text) =>
+  text.split(/(https?:\/\/[^\s]+)/g).map((p, i) =>
+    /^https?:\/\//.test(p) ? <a key={i} href={p} target="_blank" rel="noreferrer">{p}</a> : p);
+
+function Detail({ t }) {
+  return (
+    <div className="detail">
+      <dl>
+        <dt>Keterangan</dt>
+        <dd className={t.brief ? "" : "muted"}>{t.brief ?? "Belum ada keterangan"}</dd>
+        <dt>Requester</dt>
+        <dd>{t.requester ?? "–"}</dd>
+        <dt>Jadwal</dt>
+        <dd>{t.start ? fmt(t.start) : "–"} sampai {t.deadline ? fmt(t.deadline) : "–"} · {t.status}</dd>
+        {t.link && (<><dt>File / link</dt><dd>{linkify(t.link)}</dd></>)}
+      </dl>
+    </div>
+  );
+}
+
 export default function GanttChart({ tasks, range, today }) {
+  const [openId, setOpenId] = useState(null);
   const total = range.end - range.start;
   const pct = (d) => ((d - range.start) / total) * 100;
 
@@ -31,16 +54,20 @@ export default function GanttChart({ tasks, range, today }) {
             {ticks.map((t) => (
               <span key={t.label + t.left} className="tick" style={{ left: `${t.left}%` }}>{t.label}</span>
             ))}
-            <span className="today-tag" style={{ left: `${pct(today)}%` }}>
-              Hari ini · {today.getDate()} {BULAN[today.getMonth()]}
-            </span>
           </div>
         </div>
 
         {[...dated, ...undated].map((t) => {
           const hasRange = t.start && t.deadline;
+          const open = openId === t.id;
+          const toggle = () => setOpenId(open ? null : t.id);
           return (
-            <div className="row" key={t.id}>
+            <Fragment key={t.id}>
+            <div
+              className={`row clickable ${open ? "open" : ""}`}
+              role="button" tabIndex={0} aria-expanded={open} onClick={toggle}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}
+            >
               <div className="label">
                 <strong>{t.nama}</strong>
                 <span className="muted">
@@ -63,6 +90,8 @@ export default function GanttChart({ tasks, range, today }) {
                 )}
               </div>
             </div>
+            {open && <Detail t={t} />}
+            </Fragment>
           );
         })}
 

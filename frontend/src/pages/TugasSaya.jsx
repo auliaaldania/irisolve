@@ -6,7 +6,10 @@ function Row({ t, who, today }) {
   const others = t.pic.filter((p) => p !== who);
   return (
     <tr>
-      <td><strong>{t.nama}</strong></td>
+      <td>
+        <strong>{t.nama}</strong>
+        <div className={`brief ${t.brief ? "" : "empty"}`}>{t.brief ?? "Belum ada keterangan"}</div>
+      </td>
       <td>{t.divisi}</td>
       <td>
         {t.deadline ? (

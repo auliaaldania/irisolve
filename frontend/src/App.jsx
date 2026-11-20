@@ -96,12 +96,11 @@ export default function App() {
             {t.badge && <span className="navbadge">{t.badge}</span>}
           </button>
         ))}
-        <span className="navnote">Tampilan baca-saja · data dari sheet IRIS 2026–2027</span>
         <span className="who">{roleLabel(session.user)}</span>
         <button className="btn ghost" onClick={signOut}>Keluar</button>
       </nav>
       {body}
-      {showImport && <ImportDialog onClose={() => setShowImport(false)} onDone={load} />}
+      {showImport && <ImportDialog role={session.user.role} onClose={() => setShowImport(false)} onDone={load} />}
     </div>
   );
 }

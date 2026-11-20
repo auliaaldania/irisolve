@@ -8,4 +8,4 @@ export const fmtDate = (d) => d.toLocaleDateString("id-ID", { day: "numeric", mo
 export const fmtDateTime = (d) =>
   d.toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 // "1 Sep – 15 Nov 2026"
-export const fmtRange = (a, b) => `${a.toLocaleDateString("id-ID", { day: "numeric", month: "short" })} – ${fmtDate(b)}`;
+export const fmtRange = (a, b) => `${a.toLocaleDateString("id-ID", { day: "numeric", month: "short" })} - ${fmtDate(b)}`;

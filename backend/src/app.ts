@@ -4,12 +4,12 @@ import cors from "cors";
 import multer from "multer";
 import { pool } from "./db";
 import { authRouter, authenticate, requireRole, taskScope } from "./iris-auth";
-import { importDivisionCsv, ImportFormatError } from "./iris-import";
+import { DIVISIONS, ImportFormatError, importCsvText, importWorkbook } from "./iris-import";
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : true }));
 app.use(express.json());
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
@@ -30,7 +30,7 @@ app.get("/api/tasks", authenticate, async (req, res) => {
   const { rows } = await pool.query(
     `SELECT id, division, source_row AS "sourceRow", name, pics,
             start_date::text AS start, deadline::text AS deadline,
-            progress, status, data_incomplete AS "dataIncomplete", imported_at AS "importedAt"
+            progress, status, brief, requester, link, data_incomplete AS "dataIncomplete", imported_at AS "importedAt"
      FROM tasks WHERE ${where}
      ORDER BY division, deadline NULLS LAST, source_row`,
     params,
@@ -38,14 +38,22 @@ app.get("/api/tasks", authenticate, async (req, res) => {
   res.json(rows);
 });
 
-// IRISOLVE-9: import CSV (koordinator, hanya untuk divisinya sendiri)
-app.post("/api/import", authenticate, requireRole("koordinator"), upload.single("file"), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "File CSV wajib diunggah (field: file)" });
+// IRISOLVE-9: import CSV (satu divisi) atau XLSX (semua tab divisi sekaligus).
+// Koordinator hanya bisa untuk divisinya sendiri; GM bisa semua divisi.
+app.post("/api/import", authenticate, requireRole("koordinator", "gm"), upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "File wajib diunggah (field: file)" });
+  const u = req.user!;
+  const name = req.file.originalname;
   try {
-    const report = await importDivisionCsv(
-      pool, req.user!.division!, req.file.buffer.toString("utf8"), req.file.originalname,
-    );
-    res.json(report);
+    if (/\.xlsx$/i.test(name)) {
+      const results = await importWorkbook(pool, req.file.buffer, name, u.role === "gm" ? DIVISIONS : [u.division!]);
+      return res.json({ results });
+    }
+    if (!/\.csv$/i.test(name)) return res.status(400).json({ error: "Format file harus .csv atau .xlsx" });
+    const division = u.role === "gm" ? String(req.body?.division ?? "") : u.division!;
+    if (!DIVISIONS.includes(division)) return res.status(400).json({ error: "Pilih divisi untuk file CSV ini" });
+    const report = await importCsvText(pool, division, req.file.buffer.toString("utf8"), name);
+    res.json({ results: [report] });
   } catch (e) {
     if (e instanceof ImportFormatError) return res.status(400).json({ error: e.message });
     console.error(e);
@@ -67,7 +75,7 @@ app.get("/api/import/latest", authenticate, async (req, res) => {
 
 // Error upload (mis. file > 2MB) dan error tak terduga lainnya -> JSON, bukan halaman HTML
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err?.code === "LIMIT_FILE_SIZE") return res.status(400).json({ error: "File terlalu besar (maksimal 2 MB)" });
+  if (err?.code === "LIMIT_FILE_SIZE") return res.status(400).json({ error: "File terlalu besar (maksimal 10 MB)" });
   console.error(err);
   res.status(500).json({ error: "Kesalahan server" });
 });
