@@ -32,7 +32,7 @@ const DUMMY_HASH = bcrypt.hashSync("dummy-password", 10);
 
 // Menu per role (sesuai desain dashboard; "import-csv" = tombol Impor ulang di Timeline)
 export const MENU: Record<Role, string[]> = {
-  gm:          ["timeline", "tugas-saya", "beban-kerja", "konflik", "what-if", "ringkasan-gm"],
+  gm:          ["timeline", "tugas-saya", "beban-kerja", "konflik", "what-if", "ringkasan-gm", "import-csv"],
   koordinator: ["timeline", "tugas-saya", "beban-kerja", "konflik", "what-if", "import-csv"],
   staff:       ["timeline", "tugas-saya"],
 };
