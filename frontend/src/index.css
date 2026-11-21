@@ -4,6 +4,19 @@
   font-family: "Montserrat", system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--ink); background: var(--bg);
 }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1720;
+  --card: #17212c;
+  --line: #26323f;
+  --ink: #e6edf3;
+  --muted: #93a1b0;
+  --belum: #8593a3;
+  --sedang: #4b9bd6;
+  --selesai: #3fb68b;
+  --revisi: #e08a3c;
+  --today: #ef6a62;
+}
 * { box-sizing: border-box; }
 body { margin: 0; }
 .page { max-width: 1200px; margin: 0 auto; padding: 24px; }

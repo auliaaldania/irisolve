@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { login } from "../services/api";
+import ThemeToggle from "../components/ThemeToggle";
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -22,6 +23,9 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="page loginwrap">
+      <div className="login-theme">
+        <ThemeToggle />
+      </div>
       <form className="panel loginbox" onSubmit={submit}>
         <span className="brand">IRISolve</span>
         <h1>Masuk</h1>

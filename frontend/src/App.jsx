@@ -5,6 +5,7 @@ import Timeline from "./pages/Timeline";
 import TugasSaya from "./pages/TugasSaya";
 import RingkasanGM from "./pages/RingkasanGM";
 import ImportDialog from "./components/ImportDialog";
+import ThemeToggle from "./components/ThemeToggle";
 import "./pages.css";
 
 const TABS = [
@@ -97,6 +98,7 @@ export default function App() {
           </button>
         ))}
         <span className="who">{roleLabel(session.user)}</span>
+        <ThemeToggle />
         <button className="btn ghost" onClick={signOut}>Keluar</button>
       </nav>
       {body}
