@@ -219,13 +219,22 @@ export async function importDivision(
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    for (const t of tasks) {
-      const hash = createHash("sha1")
-        .update(JSON.stringify([t.name, t.pics, t.start, t.deadline, t.progress, t.status, t.brief, t.requester, t.link]))
-        .digest("hex");
+    // Semua tugas dikirim dalam SATU perintah (cepat walau database jauh); hanya baris yang berubah yang ditulis
+    if (tasks.length > 0) {
+      const rows = tasks.map((t) => ({
+        source_row: t.sourceRow, name: t.name, pics: t.pics, start_date: t.start, deadline: t.deadline,
+        progress: t.progress, status: t.status, data_incomplete: t.incomplete,
+        brief: t.brief, requester: t.requester, link: t.link,
+        content_hash: createHash("sha1")
+          .update(JSON.stringify([t.name, t.pics, t.start, t.deadline, t.progress, t.status, t.brief, t.requester, t.link]))
+          .digest("hex"),
+      }));
       const res = await client.query(
         `INSERT INTO tasks (division, source_row, name, pics, start_date, deadline, progress, status, data_incomplete, brief, requester, link, content_hash)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+         SELECT $1, r.source_row, r.name, ARRAY(SELECT jsonb_array_elements_text(r.pics)), r.start_date, r.deadline,
+                r.progress, r.status, r.data_incomplete, r.brief, r.requester, r.link, r.content_hash
+         FROM jsonb_to_recordset($2::jsonb) AS r(source_row int, name text, pics jsonb, start_date date, deadline date,
+              progress int, status text, data_incomplete boolean, brief text, requester text, link text, content_hash text)
          ON CONFLICT (division, source_row) DO UPDATE SET
            name=EXCLUDED.name, pics=EXCLUDED.pics, start_date=EXCLUDED.start_date,
            deadline=EXCLUDED.deadline, progress=EXCLUDED.progress, status=EXCLUDED.status,
@@ -233,11 +242,11 @@ export async function importDivision(
            data_incomplete=EXCLUDED.data_incomplete, content_hash=EXCLUDED.content_hash, imported_at=now()
          WHERE tasks.content_hash <> EXCLUDED.content_hash
          RETURNING (xmax = 0) AS inserted`,
-        [division, t.sourceRow, t.name, t.pics, t.start, t.deadline, t.progress, t.status, t.incomplete, t.brief, t.requester, t.link, hash],
+        [division, JSON.stringify(rows)],
       );
-      if (res.rowCount === 0) unchanged++;
-      else if (res.rows[0].inserted) inserted++;
-      else updated++;
+      inserted = res.rows.filter((r) => r.inserted).length;
+      updated = res.rows.length - inserted;
+      unchanged = tasks.length - res.rows.length;
     }
     // Baris yang sudah tidak ada di sheet dibuang. Baris yang error tetap dipertahankan
     // (masih ada di sheet), dan file tanpa tugas valid tidak pernah menghapus apa pun.
