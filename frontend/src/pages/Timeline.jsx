@@ -10,7 +10,12 @@ export default function Timeline({ tasks, today, lastImport, onImport }) {
   const [showList, setShowList] = useState(false);
 
   const divisiList = useMemo(() => [...new Set(tasks.map((t) => t.divisi))].sort(), [tasks]);
-  const picList = useMemo(() => [...new Set(tasks.flatMap((t) => t.pic))].sort(), [tasks]);
+  const picList = useMemo(() => {
+  const source = filters.divisi === "Semua"
+    ? tasks
+    : tasks.filter(t => t.divisi === filters.divisi);
+  return [...new Set(source.flatMap(t => t.pic))].sort();
+}, [tasks, filters.divisi]);
 
   const visible = useMemo(
     () =>

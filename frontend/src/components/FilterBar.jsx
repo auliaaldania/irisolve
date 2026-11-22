@@ -3,9 +3,13 @@ import StatusFilter from "./StatusFilter";
 export default function FilterBar({ filters, setFilters, divisiList, picList, onReset }) {
   const set = (key) => (e) => setFilters({ ...filters, [key]: e.target.value });
 
+  // ganti divisi -> PIC kembali ke "Semua"
+  const setDivisi = (e) =>
+    setFilters({ ...filters, divisi: e.target.value, pic: "Semua" });
+
   return (
     <div className="filters">
-      <select className="control" value={filters.divisi} onChange={set("divisi")} aria-label="Filter divisi">
+      <select className="control" value={filters.divisi} onChange={setDivisi} aria-label="Filter divisi">
         <option value="Semua">Divisi: Semua</option>
         {divisiList.map((d) => <option key={d}>{d}</option>)}
       </select>
