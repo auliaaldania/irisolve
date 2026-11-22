@@ -7,6 +7,7 @@ import { authRouter, authenticate, requireRole, taskScope } from "./iris-auth";
 import { DIVISIONS, ImportFormatError, importCsvText, importWorkbook } from "./iris-import";
 
 const app = express();
+app.set("trust proxy", 1); // di balik proxy Vercel: req.ip = IP pengguna sebenarnya
 app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : true }));
 app.use(express.json());
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -80,5 +81,9 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   res.status(500).json({ error: "Kesalahan server" });
 });
 
-const port = Number(process.env.PORT ?? 3000);
-app.listen(port, () => console.log(`IRISolve backend jalan di http://localhost:${port}`));
+// Vercel menjalankan app sebagai fungsi serverless (tanpa listen); lokal dan Render tetap pakai listen.
+export default app;
+if (!process.env.VERCEL) {
+  const port = Number(process.env.PORT ?? 3000);
+  app.listen(port, () => console.log(`IRISolve backend jalan di http://localhost:${port}`));
+}
