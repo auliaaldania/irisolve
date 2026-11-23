@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Timeline from "./pages/Timeline";
 import TugasSaya from "./pages/TugasSaya";
 import RingkasanGM from "./pages/RingkasanGM";
+import BebanKerja from "./pages/BebanKerja";
 import ImportDialog from "./components/ImportDialog";
 import ThemeToggle from "./components/ThemeToggle";
 import "./pages.css";
@@ -16,7 +17,7 @@ const TABS = [
   { id: "what-if", label: "What-if", badge: "Sprint 2–3" },
   { id: "ringkasan-gm", label: "Ringkasan GM" },
 ];
-const PLACEHOLDERS = ["beban-kerja", "konflik", "what-if"];
+const PLACEHOLDERS = ["konflik", "what-if"];
 
 function Placeholder({ label, badge }) {
   return (
@@ -85,6 +86,7 @@ export default function App() {
   else if (active.id === "timeline")
     body = <Timeline tasks={tasks} today={today} lastImport={lastImport} onImport={canImport ? () => setShowImport(true) : null} />;
   else if (active.id === "tugas-saya") body = <TugasSaya tasks={tasks} today={today} user={session.user} />;
+  else if (active.id === "beban-kerja") body = <BebanKerja tasks={tasks} today={today} lastImport={lastImport} />;
   else body = <RingkasanGM tasks={tasks} today={today} />;
 
   return (
