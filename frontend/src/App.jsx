@@ -5,8 +5,10 @@ import Timeline from "./pages/Timeline";
 import TugasSaya from "./pages/TugasSaya";
 import RingkasanGM from "./pages/RingkasanGM";
 import BebanKerja from "./pages/BebanKerja";
+import Konflik from "./pages/Konflik";
 import ImportDialog from "./components/ImportDialog";
 import ThemeToggle from "./components/ThemeToggle";
+import { dayOf, findConflicts, toEntries } from "./workload";
 import "./pages.css";
 
 const TABS = [
@@ -17,7 +19,7 @@ const TABS = [
   { id: "what-if", label: "What-if", badge: "Sprint 2–3" },
   { id: "ringkasan-gm", label: "Ringkasan GM" },
 ];
-const PLACEHOLDERS = ["konflik", "what-if"];
+const PLACEHOLDERS = ["what-if"];
 
 function Placeholder({ label, badge }) {
   return (
@@ -64,6 +66,12 @@ export default function App() {
     return d;
   }, []);
 
+  // konflik aktif = jadwal bentroknya belum berakhir; hilang sendiri kalau data terbaru sudah bersih
+  const conflictCount = useMemo(
+    () => findConflicts(toEntries(tasks)).filter((c) => c.e >= dayOf(today)).length,
+    [tasks, today]
+  );
+
   if (session === undefined) return <div className="page"><div className="state">Memuat…</div></div>;
   if (session === null) return <Login onLogin={(s) => { setTab("timeline"); setSession(s); }} />;
 
@@ -87,6 +95,7 @@ export default function App() {
     body = <Timeline tasks={tasks} today={today} lastImport={lastImport} onImport={canImport ? () => setShowImport(true) : null} />;
   else if (active.id === "tugas-saya") body = <TugasSaya tasks={tasks} today={today} user={session.user} />;
   else if (active.id === "beban-kerja") body = <BebanKerja tasks={tasks} today={today} lastImport={lastImport} />;
+  else if (active.id === "konflik") body = <Konflik tasks={tasks} today={today} lastImport={lastImport} onGoTimeline={() => setTab("timeline")} />;
   else body = <RingkasanGM tasks={tasks} today={today} />;
 
   return (
@@ -97,6 +106,7 @@ export default function App() {
           <button key={t.id} className={`navbtn ${active.id === t.id ? "active" : ""}`} onClick={() => setTab(t.id)}>
             {t.label}
             {t.badge && <span className="navbadge">{t.badge}</span>}
+            {t.id === "konflik" && conflictCount > 0 && <span className="conflictbadge">{conflictCount}</span>}
           </button>
         ))}
         <span className="who">{roleLabel(session.user)}</span>

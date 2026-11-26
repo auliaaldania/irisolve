@@ -6,16 +6,16 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0f1720;
-  --card: #17212c;
-  --line: #26323f;
-  --ink: #e6edf3;
-  --muted: #93a1b0;
-  --belum: #8593a3;
-  --sedang: #4b9bd6;
-  --selesai: #3fb68b;
-  --revisi: #e08a3c;
-  --today: #ef6a62;
+  --bg: #12131a;
+  --card: #1a1f29;
+  --line: #2b313d;
+  --ink: #e8e1ef;
+  --muted: #a0a5b1;
+  --belum: #7d8799;
+  --sedang: #7ab6e8;
+  --selesai: #6ddccf;
+  --revisi: #f2a065;
+  --today: #f2837c;
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
