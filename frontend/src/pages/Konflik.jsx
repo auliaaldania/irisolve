@@ -17,8 +17,8 @@ function Pair({ c, past }) {
       </div>
       <div className="wl-track">
         <div className="ov" style={{ left: `${x(c.s)}%`, width: `${w(c.s, c.e)}%` }} />
-        <b style={{ top: 6, left: `${x(c.a.s)}%`, width: `${w(c.a.s, c.a.e)}%` }} />
-        <b style={{ top: 22, left: `${x(c.b.s)}%`, width: `${w(c.b.s, c.b.e)}%` }} />
+        <b className="a" style={{ left: `${x(c.a.s)}%`, width: `${w(c.a.s, c.a.e)}%` }} />
+        <b className="b" style={{ left: `${x(c.b.s)}%`, width: `${w(c.b.s, c.b.e)}%` }} />
       </div>
       <div className="wl-dates">
         <span>{fmtDay(c.a.s)} – {fmtDay(c.a.e)}</span>

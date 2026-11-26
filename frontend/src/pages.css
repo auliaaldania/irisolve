@@ -239,3 +239,21 @@ select.control {
 .wl-dates { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
 .banner.ok { background: color-mix(in srgb, var(--selesai) 18%, var(--card)); color: var(--ink); }
 .conflictbadge { font-size: 11px; font-weight: 600; background: var(--today); color: #fff; padding: 1px 7px; border-radius: 99px; }
+
+/* ===== Konflik (bar lebih tebal) ===== */
+.wl-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin: 0 0 16px; cursor: pointer; }
+.wl-person { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.wl-av { width: 30px; height: 30px; border-radius: 50%; background: var(--line); display: grid; place-items: center; font-weight: 600; font-size: 12px; }
+.wl-pair { border-top: 1px solid var(--line); padding: 12px 0 2px; }
+.wl-pair .t { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.wl-hit { color: var(--today); font-weight: 600; }
+
+.wl-track { position: relative; height: 56px; background: var(--bg); border-radius: 8px; overflow: hidden; }
+.wl-track b { position: absolute; height: 14px; border-radius: 7px; background: var(--sedang); }
+.wl-track b.a { top: 8px; }
+.wl-track b.b { top: 34px; }
+.wl-track .ov { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--today) 24%, transparent); border-inline: 1.5px dashed var(--today); }
+
+.wl-dates { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
+.banner.ok { background: color-mix(in srgb, var(--selesai) 18%, var(--card)); color: var(--ink); }
+.conflictbadge { font-size: 11px; font-weight: 600; background: var(--today); color: #fff; padding: 1px 7px; border-radius: 99px; }
